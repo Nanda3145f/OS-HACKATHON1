@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPU Scheduling Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+        }
+        .gantt-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .gantt-chart {
+            flex: 1;
+            margin: 10px;
+        }
+        .gantt-block {
+            display: inline-block;
+            margin: 5px;
+            padding: 10px;
+            background-color: lightblue;
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+
+<h1>CPU Scheduling Simulator</h1>
+
+<form id="processForm">
+    <label for="arrivalTime">Arrival Time:</label>
+    <input type="number" id="arrivalTime" required><br><br>
+
+    <label for="burstTime">Burst Time:</label>
+    <input type="number" id="burstTime" required><br><br>
+
+    <label for="priority">Priority:</label>
+    <input type="number" id="priority" required><br><br>
+
+    <button type="button" onclick="addProcess()">Add Process</button>
+</form>
+
+<h3>Processes:</h3>
+<table id="processTable">
+    <tr>
+        <th>Process ID</th>
+        <th>Arrival Time</th>
+        <th>Burst Time</th>
+        <th>Priority</th>
+    </tr>
+</table>
+
+<br><br>
+<button onclick="simulate()">Simulate All</button>
+
+<h2>Gantt Charts Comparison</h2>
+<div class="gantt-container">
+    <div class="gantt-chart">
+        <h3>FCFS</h3>
+        <div id="ganttChartFCFS"></div>
+    </div>
+    <div class="gantt-chart">
+        <h3>SJF</h3>
+        <div id="ganttChartSJF"></div>
+    </div>
+    <div class="gantt-chart">
+        <h3>Priority</h3>
+        <div id="ganttChartPriority"></div>
+    </div>
+</div>
+
+<h3>Process Details:</h3>
+<table id="resultsTable">
+    <tr>
+        <th>Process ID</th>
+        <th>Arrival Time</th>
+        <th>Burst Time</th>
+        <th>Waiting Time (FCFS)</th>
+        <th>Turnaround Time (FCFS)</th>
+        <th>Waiting Time (SJF)</th>
+        <th>Turnaround Time (SJF)</th>
+        <th>Waiting Time (Priority)</th>
+        <th>Turnaround Time (Priority)</th>
+    </tr>
+</table>
+
+<script>
+    let processes = [];
+
+    function addProcess() {
+        const arrivalTime = document.getElementById("arrivalTime").value;
+        const burstTime = document.getElementById("burstTime").value;
+        const priority = document.getElementById("priority").value;
+
+        const process = {
+            id: processes.length + 1,
+            arrivalTime: parseInt(arrivalTime),
+            burstTime: parseInt(burstTime),
+            priority: parseInt(priority),
+            waitingTimeFCFS: 0,
+            turnAroundTimeFCFS: 0,
+            waitingTimeSJF: 0,
+            turnAroundTimeSJF: 0,
+            waitingTimePriority: 0,
+            turnAroundTimePriority: 0
+        };
+
+        processes.push(process);
+        updateProcessTable();
+    }
+
+    function updateProcessTable() {
+        const table = document.getElementById("processTable");
+        table.innerHTML = `
+            <tr>
+                <th>Process ID</th>
+                <th>Arrival Time</th>
+                <th>Burst Time</th>
+                <th>Priority</th>
+            </tr>`;
+        
+        processes.forEach(p => {
+            const row = table.insertRow();
+            row.innerHTML = `<td>${p.id}</td><td>${p.arrivalTime}</td><td>${p.burstTime}</td><td>${p.priority}</td>`;
+        });
+    }
+
+    function simulate() {
+        simulateFCFS();
+        simulateSJF();
+        simulatePriority();
+        updateResultsTable();
+    }
+
+    function simulateFCFS() {
+        let currentTime = 0;
+        processes.sort((a, b) => a.arrivalTime - b.arrivalTime);
+
+        processes.forEach(p => {
+            if (currentTime < p.arrivalTime) {
+                currentTime = p.arrivalTime;
+            }
+            p.waitingTimeFCFS = currentTime - p.arrivalTime;
+            p.turnAroundTimeFCFS = p.waitingTimeFCFS + p.burstTime;
+            currentTime += p.burstTime;
+        });
+
+        drawGanttChart('ganttChartFCFS', processes, 'waitingTimeFCFS');
+    }
+
+    function simulateSJF() {
+        let currentTime = 0;
+        processes.sort((a, b) => a.arrivalTime - b.arrivalTime || a.burstTime - b.burstTime);
+
+        processes.forEach(p => {
+            if (currentTime < p.arrivalTime) {
+                currentTime = p.arrivalTime;
+            }
+            p.waitingTimeSJF = currentTime - p.arrivalTime;
+            p.turnAroundTimeSJF = p.waitingTimeSJF + p.burstTime;
+            currentTime += p.burstTime;
+        });
+
+        drawGanttChart('ganttChartSJF', processes, 'waitingTimeSJF');
+    }
+
+    function simulatePriority() {
+        let currentTime = 0;
+        processes.sort((a, b) => a.arrivalTime - b.arrivalTime || a.priority - b.priority);
+
+        processes.forEach(p => {
+            if (currentTime < p.arrivalTime) {
+                currentTime = p.arrivalTime;
+            }
+            p.waitingTimePriority = currentTime - p.arrivalTime;
+            p.turnAroundTimePriority = p.waitingTimePriority + p.burstTime;
+            currentTime += p.burstTime;
+        });
+
+        drawGanttChart('ganttChartPriority', processes, 'waitingTimePriority');
+    }
+
+    function drawGanttChart(chartId, processes, waitingTimeProp) {
+        const chart = document.getElementById(chartId);
+        chart.innerHTML = ''; 
+
+        processes.forEach(p => {
+            const block = document.createElement("div");
+            block.classList.add("gantt-block");
+            block.style.width = (p.burstTime * 20) + "px";
+            block.innerText = "P" + p.id;
+            chart.appendChild(block);
+        });
+    }
+
+    function updateResultsTable() {
+        const table = document.getElementById("resultsTable");
+        table.innerHTML = `
+            <tr>
+                <th>Process ID</th>
+                <th>Arrival Time</th>
+                <th>Burst Time</th>
+                <th>Waiting Time (FCFS)</th>
+                <th>Turnaround Time (FCFS)</th>
+                <th>Waiting Time (SJF)</th>
+                <th>Turnaround Time (SJF)</th>
+                <th>Waiting Time (Priority)</th>
+                <th>Turnaround Time (Priority)</th>
+            </tr>`;
+        
+        processes.forEach(p => {
+            const row = table.insertRow();
+            row.innerHTML = `
+                <td>${p.id}</td>
+                <td>${p.arrivalTime}</td>
+                <td>${p.burstTime}</td>
+                <td>${p.waitingTimeFCFS}</td>
+                <td>${p.turnAroundTimeFCFS}</td>
+                <td>${p.waitingTimeSJF}</td>
+                <td>${p.turnAroundTimeSJF}</td>
+                <td>${p.waitingTimePriority}</td>
+                <td>${p.turnAroundTimePriority}</td>`;
+        });
+    }
+</script>
+
+</body>
+</html>
